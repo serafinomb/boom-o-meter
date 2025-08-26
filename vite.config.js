@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/flash-distance-calculator/', // Replace with your GitHub repo name
+  base: '/boom-o-meter/', // Replace with your GitHub repo name
   plugins: [
     react(),
     VitePWA({
