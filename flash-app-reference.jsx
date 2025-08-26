@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Settings, ArrowLeft, RotateCcw, Wifi, WifiOff } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { Settings, ArrowLeft, RotateCcw } from 'lucide-react';
 
 // Custom Slider Component that works well on mobile
 const CustomSlider = ({ 
@@ -125,7 +125,7 @@ const DualRangeSlider = ({
   className = '',
   color = 'blue' 
 }) => {
-  const [dragging, setDragging] = useState(null);
+  const [dragging, setDragging] = useState(null); // 'min' | 'max' | null
   const sliderRef = useRef(null);
   
   const minPercentage = ((minValue - min) / (max - min)) * 100;
@@ -175,6 +175,7 @@ const DualRangeSlider = ({
     const clickPercentage = (e.clientX - rect.left) / rect.width;
     const clickValue = min + (max - min) * clickPercentage;
     
+    // Determine which thumb is closer to the click
     const distanceToMin = Math.abs(clickValue - minValue);
     const distanceToMax = Math.abs(clickValue - maxValue);
     
@@ -212,16 +213,19 @@ const DualRangeSlider = ({
     }
   }, [dragging]);
 
+  // Determine z-index based on which thumb should be on top
   const minZ = minPercentage > maxPercentage - 5 ? 'z-10' : 'z-20';
   const maxZ = maxPercentage < minPercentage + 5 ? 'z-10' : 'z-30';
 
   return (
     <div className={`relative w-full h-6 ${className}`} ref={sliderRef}>
+      {/* Track */}
       <div 
         className={`absolute top-2 w-full h-2 rounded-full ${trackColorMap[color]} cursor-pointer`}
         onClick={handleTrackClick}
       ></div>
       
+      {/* Fill between thumbs */}
       <div 
         className={`absolute top-2 h-2 rounded-full ${colorMap[color]} transition-all duration-150 pointer-events-none`}
         style={{ 
@@ -230,6 +234,7 @@ const DualRangeSlider = ({
         }}
       ></div>
       
+      {/* Min Thumb */}
       <div 
         className={`absolute top-0 w-6 h-6 rounded-full ${colorMap[color]} border-2 border-white shadow-lg cursor-pointer hover:scale-110 transition-all duration-150 ${minZ}`}
         style={{ left: `calc(${minPercentage}% - 12px)` }}
@@ -237,6 +242,7 @@ const DualRangeSlider = ({
         onTouchStart={(e) => handleStart(e, 'min')}
       ></div>
       
+      {/* Max Thumb */}
       <div 
         className={`absolute top-0 w-6 h-6 rounded-full ${colorMap[color]} border-2 border-white shadow-lg cursor-pointer hover:scale-110 transition-all duration-150 ${maxZ}`}
         style={{ left: `calc(${maxPercentage}% - 12px)` }}
@@ -247,33 +253,11 @@ const DualRangeSlider = ({
   );
 };
 
-// Storage utilities
-const STORAGE_KEY = 'flash-calculator-settings';
-
-const saveToStorage = (key, data) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (error) {
-    console.warn('Could not save to localStorage:', error);
-  }
-};
-
-const loadFromStorage = (key, defaultValue) => {
-  try {
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : defaultValue;
-  } catch (error) {
-    console.warn('Could not load from localStorage:', error);
-    return defaultValue;
-  }
-};
-
 const FlashReachCalculator = () => {
   const [currentScreen, setCurrentScreen] = useState('calculator');
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
-  // Settings state with localStorage persistence
-  const defaultSettings = {
+  // Settings state
+  const [settings, setSettings] = useState({
     guideNumber: 30,
     availableISOs: [100, 160, 200, 400, 800, 1600],
     availableApertures: [2, 2.8, 4, 5.6, 8, 11, 16],
@@ -285,37 +269,14 @@ const FlashReachCalculator = () => {
       accuracy: 0.3
     },
     batterySavingMode: false,
-    photographyMode: 'digital',
-    fixedISO: 400
-  };
-  
-  const [settings, setSettings] = useState(() => 
-    loadFromStorage(STORAGE_KEY, defaultSettings)
-  );
+    photographyMode: 'digital', // 'digital' or 'analog'
+    fixedISO: 400 // ISO for analog mode
+  });
   
   // Calculator state
   const [targetDistance, setTargetDistance] = useState(2);
   const [iso, setIso] = useState(160);
   const [selectedSolution, setSelectedSolution] = useState(0);
-  
-  // Save settings to localStorage when they change
-  useEffect(() => {
-    saveToStorage(STORAGE_KEY, settings);
-  }, [settings]);
-  
-  // Online/offline status
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
   
   const allPowerLevels = ['1/1', '1/2', '1/4', '1/8', '1/16', '1/32', '1/64', '1/128'];
   const allApertures = [1.4, 1.8, 2, 2.8, 4, 5.6, 8, 11, 16, 22];
@@ -325,8 +286,6 @@ const FlashReachCalculator = () => {
   const currentISO = settings.photographyMode === 'analog' ? settings.fixedISO : iso;
   
   const availableApertures = settings.availableApertures;
-  
-  // Convert power fraction to decimal
   const getPowerMultiplier = (powerStr) => {
     const fractions = {
       '1/1': 1, '1/2': 0.5, '1/4': 0.25, '1/8': 0.125,
@@ -356,14 +315,14 @@ const FlashReachCalculator = () => {
     const solutions = [];
     
     allPowerLevels.forEach(power => {
-      const requiredAperture = calculateRequiredAperture(targetDistance, settings.guideNumber, currentISO, power);
+      const requiredAperture = calculateRequiredAperture(targetDistance, settings.guideNumber, iso, power);
       
       const closestAperture = availableApertures.reduce((prev, curr) => 
         Math.abs(curr - requiredAperture) < Math.abs(prev - requiredAperture) ? curr : prev
       );
       
       if (settings.availableApertures.includes(closestAperture)) {
-        const actualDistance = (settings.guideNumber * Math.sqrt(currentISO / 100) * Math.sqrt(getPowerMultiplier(power))) / closestAperture;
+        const actualDistance = (settings.guideNumber * Math.sqrt(iso / 100) * Math.sqrt(getPowerMultiplier(power))) / closestAperture;
         const distanceError = Math.abs(actualDistance - targetDistance);
         
         const powerValue = getPowerMultiplier(power);
@@ -401,7 +360,21 @@ const FlashReachCalculator = () => {
   
   // Reset defaults
   const resetToDefaults = () => {
-    setSettings(defaultSettings);
+    setSettings({
+      guideNumber: 30,
+      availableISOs: [100, 160, 200, 400, 800, 1600],
+      availableApertures: [2, 2.8, 4, 5.6, 8, 11, 16],
+      minDistance: 0.6,
+      maxDistance: 5.0,
+      priorityWeights: {
+        efficiency: 0.7,
+        depthOfField: 0.5,
+        accuracy: 0.3
+      },
+      batterySavingMode: false,
+      photographyMode: 'digital',
+      fixedISO: 400
+    });
   };
   
   // Settings Screen Component
@@ -475,6 +448,7 @@ const FlashReachCalculator = () => {
 
         {/* ISO Settings - varies by photography mode */}
         {settings.photographyMode === 'analog' ? (
+          /* Fixed ISO for Analog */
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-3">Film ISO</label>
             <div className="bg-white rounded-lg p-3 shadow-inner">
@@ -493,6 +467,7 @@ const FlashReachCalculator = () => {
             </div>
           </div>
         ) : (
+          /* Available ISOs for Digital */
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-3">Available ISO Values</label>
             <div className="bg-white rounded-lg p-3 shadow-inner">
@@ -724,20 +699,6 @@ const FlashReachCalculator = () => {
 
   const CalculatorScreen = () => (
     <div className="max-w-lg mx-auto bg-gray-100 p-6 rounded-2xl shadow-lg font-mono">
-      {/* Online/Offline Status */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          {isOnline ? (
-            <Wifi size={16} className="text-green-500" />
-          ) : (
-            <WifiOff size={16} className="text-red-500" />
-          )}
-          <span className="text-xs text-gray-500">
-            {isOnline ? 'Online' : 'Offline'}
-          </span>
-        </div>
-      </div>
-
       {/* Distance Slider */}
       <div className="mb-6">
         <label className="block text-xs text-gray-600 mb-2 uppercase tracking-wide">Target Distance</label>
@@ -860,14 +821,18 @@ const FlashReachCalculator = () => {
       <div className="mb-6 p-4 bg-white rounded-lg shadow-inner">
         <div className="text-sm font-bold text-gray-800 mb-3 text-center">Quick Power Reference</div>
         
+        {/* Generate distance columns and aperture rows based on user settings */}
         {(() => {
           const allDistances = [0.9, 1.3, 1.8, 2.5, 3.5, 5, 10, 20, 30];
+          // Filter distances to match user's configured range
           const visibleDistances = allDistances.filter(d => 
             d >= settings.minDistance && d <= settings.maxDistance
-          ).slice(0, 5);
+          );
           
-          const userApertures = settings.availableApertures.sort((a, b) => a - b).slice(0, 4);
+          // Use user's configured apertures
+          const userApertures = settings.availableApertures.sort((a, b) => a - b);
           
+          // Define our power levels and their properties
           const powerLevels = [
             { power: '1/128', value: 1/128, color: 'bg-cyan-400' },
             { power: '1/64', value: 1/64, color: 'bg-sky-400' },
@@ -879,53 +844,78 @@ const FlashReachCalculator = () => {
             { power: '1/1', value: 1, color: 'bg-red-400' }
           ];
           
+          // Calculate which power levels are viable for each aperture/distance combination
           const getViablePowers = (distance, aperture) => {
-            return powerLevels.filter(({ value }) => {
+            const viablePowers = [];
+            
+            powerLevels.forEach(({ power, value, color }) => {
+              // Calculate distance achievable with this power level using current ISO
               const effectiveGN = settings.guideNumber * Math.sqrt(currentISO / 100) * Math.sqrt(value);
-              const calculatedAperture = effectiveGN / distance;
-              return Math.abs(calculatedAperture - aperture) < 0.5;
+              const achievableDistance = effectiveGN / aperture;
+              
+              // Consider viable if achievable distance is within 15% of target distance
+              const tolerance = 0.15;
+              if (achievableDistance >= distance * (1 - tolerance) && achievableDistance <= distance * (1 + tolerance)) {
+                viablePowers.push({ power, color });
+              }
             });
+            
+            return viablePowers;
           };
 
+          // Don't show table if no distances or apertures are available
+          if (visibleDistances.length === 0 || userApertures.length === 0) {
+            return (
+              <div className="text-center py-4 text-gray-500 text-sm">
+                Configure distance range and apertures in settings to see power reference
+              </div>
+            );
+          }
+
           return (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr>
-                    <th className="text-left p-1">f/</th>
-                    {visibleDistances.map(dist => (
-                      <th key={dist} className="text-center p-1 min-w-12">{dist}m</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {userApertures.map(aperture => (
-                    <tr key={aperture}>
-                      <td className="p-1 font-medium">{aperture}</td>
-                      {visibleDistances.map(distance => {
-                        const viablePowers = getViablePowers(distance, aperture);
-                        return (
-                          <td key={distance} className="p-1 text-center">
-                            <div className="flex flex-wrap gap-0.5 justify-center">
-                              {viablePowers.slice(0, 3).map(({ power, color }) => (
-                                <div
-                                  key={power}
-                                  className={`w-2 h-2 rounded-full ${color}`}
-                                  title={power}
-                                ></div>
-                              ))}
+            <>
+              {/* Table Header - Distances */}
+              <div className="grid gap-1 mb-2 text-xs font-semibold text-gray-700" style={{ gridTemplateColumns: `60px repeat(${visibleDistances.length}, 1fr)` }}>
+                <div className="text-center py-1">Aperture</div>
+                {visibleDistances.map(distance => (
+                  <div key={distance} className="text-center py-1">{distance}m</div>
+                ))}
+              </div>
+              
+              {/* Table Rows - User's Apertures */}
+              <div className="space-y-1">
+                {userApertures.map((aperture) => (
+                  <div key={aperture} className="grid gap-1 items-center" style={{ gridTemplateColumns: `60px repeat(${visibleDistances.length}, 1fr)` }}>
+                    <div className="text-center py-2 font-medium text-gray-700">f/{aperture}</div>
+                    
+                    {visibleDistances.map((distance) => {
+                      const viablePowers = getViablePowers(distance, aperture);
+                      
+                      return (
+                        <div key={distance} className="flex items-center justify-center py-2 px-1">
+                          <div className="w-full flex justify-center">
+                            {/* Multiple power level bars - no labels */}
+                            <div className="flex flex-col space-y-0.5 w-full max-w-8">
+                              {viablePowers.length > 0 ? (
+                                viablePowers.map(({ power, color }) => (
+                                  <div key={power} className={`w-full h-2 rounded-full ${color}`}></div>
+                                ))
+                              ) : (
+                                <div className="w-full h-2 rounded-full bg-gray-300"></div>
+                              )}
                             </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </>
           );
         })()}
         
+        {/* Color Legend */}
         <div className="mt-3 pt-2 border-t border-gray-200">
           <div className="flex flex-wrap gap-2 justify-center text-xs">
             {[
@@ -951,7 +941,7 @@ const FlashReachCalculator = () => {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Settings button at bottom */}
       <div className="flex justify-between items-center">
         <div className="text-center flex-1">
           <div className="text-lg font-bold text-gray-700">FR-04</div>
