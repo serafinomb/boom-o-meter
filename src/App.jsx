@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import SettingsScreen from "./components/screens/SettingsScreen";
 import CalculatorScreen from "./components/screens/CalculatorScreen";
 import { useSettings } from "./hooks/useSettings";

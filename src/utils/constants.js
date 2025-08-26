@@ -30,12 +30,12 @@ export const DEFAULT_SETTINGS = {
 };
 
 export const POWER_LEVEL_COLORS = [
-  { power: "1/128", color: "bg-cyan-400" },
-  { power: "1/64", color: "bg-sky-400" },
-  { power: "1/32", color: "bg-blue-400" },
-  { power: "1/16", color: "bg-indigo-400" },
-  { power: "1/8", color: "bg-purple-400" },
-  { power: "1/4", color: "bg-violet-400" },
-  { power: "1/2", color: "bg-pink-400" },
-  { power: "1/1", color: "bg-red-400" },
+  { power: "1/128", color: "bg-green-400" },
+  { power: "1/64", color: "bg-lime-400" },
+  { power: "1/32", color: "bg-yellow-400" },
+  { power: "1/16", color: "bg-amber-400" },
+  { power: "1/8", color: "bg-orange-400" },
+  { power: "1/4", color: "bg-orange-500" },
+  { power: "1/2", color: "bg-red-400" },
+  { power: "1/1", color: "bg-red-500" },
 ];

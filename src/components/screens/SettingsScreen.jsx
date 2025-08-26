@@ -7,7 +7,7 @@ import { getSliderLabel } from "../../utils/flashCalculations";
 
 const SettingsScreen = ({ settings, setSettings, resetToDefaults, onBack }) => {
   return (
-    <div className="max-w-lg mx-auto bg-gray-100 p-6 rounded-2xl shadow-lg font-mono">
+    <div className="max-w-lg mx-auto p-6 rounded-2xl font-mono">
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={onBack}

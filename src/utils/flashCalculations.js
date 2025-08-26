@@ -1,4 +1,4 @@
-import { ALL_POWER_LEVELS } from './constants';
+import { ALL_POWER_LEVELS, POWER_LEVEL_COLORS } from './constants';
 
 // Get power multiplier from power string
 export const getPowerMultiplier = (powerStr) => {
@@ -70,42 +70,60 @@ export const findViableSolutions = (targetDistance, settings, currentISO, availa
         actualDistance,
         distanceError,
         powerMultiplier: powerValue,
-        batteryEfficiency: powerValue,
-        depthOfField: closestAperture,
+        powerConsumption: powerValue, // Higher = more power consumed
+        depthOfField: closestAperture, // Higher = deeper DOF
       });
     }
   });
 
-  // Sort by user preferences (independent weights)
+  // Sort by user preferences with normalized scoring
   return solutions
     .sort((a, b) => {
+      // Normalize scores to similar scales (0-1) before applying weights
+      
+      // Power Efficiency: Lower power consumption is better
+      // powerConsumption ranges from ~0.0078 (1/128) to 1.0 (1/1)
+      // Normalize by dividing by max possible difference (≈1.0)
       const efficiencyScore =
-        (b.batteryEfficiency - a.batteryEfficiency) *
+        (a.powerConsumption - b.powerConsumption) *
         settings.priorityWeights.efficiency;
+      
+      // Depth of Field: Higher aperture numbers = deeper DOF
+      // aperture values like 2.8, 4, 5.6, 8, 11, 16, 22
+      // Normalize by dividing by a reasonable max difference (≈15)
       const dofScore =
-        (a.depthOfField - b.depthOfField) *
+        ((b.depthOfField - a.depthOfField) / 15) *
         settings.priorityWeights.depthOfField;
-      const accuracyScore =
-        (b.distanceError - a.distanceError) *
-        settings.priorityWeights.accuracy;
+      
+      // Distance Accuracy: Lower error is better
+      // Normalize by dividing by 2m (reasonable max error we care about)
+      const maxReasonableError = 2.0;
+      const normalizedAccuracyScore = Math.min(
+        (a.distanceError - b.distanceError) / maxReasonableError,
+        1.0
+      );
+      const accuracyScore = normalizedAccuracyScore * settings.priorityWeights.accuracy;
 
-      return efficiencyScore + dofScore + accuracyScore;
+      const totalScore = efficiencyScore + dofScore + accuracyScore;
+      
+      // Secondary sort by aperture for consistency when scores are equal
+      if (Math.abs(totalScore) < 0.001) {
+        return b.depthOfField - a.depthOfField;
+      }
+      
+      return totalScore;
     })
     .slice(0, 6);
 };
 
 // Get viable power levels for distance/aperture combination
 export const getViablePowers = (distance, aperture, guideNumber, currentISO) => {
-  const powerLevels = [
-    { power: "1/128", value: 1 / 128, color: "bg-cyan-400" },
-    { power: "1/64", value: 1 / 64, color: "bg-sky-400" },
-    { power: "1/32", value: 1 / 32, color: "bg-blue-400" },
-    { power: "1/16", value: 1 / 16, color: "bg-indigo-400" },
-    { power: "1/8", value: 1 / 8, color: "bg-purple-400" },
-    { power: "1/4", value: 1 / 4, color: "bg-violet-400" },
-    { power: "1/2", value: 1 / 2, color: "bg-pink-400" },
-    { power: "1/1", value: 1, color: "bg-red-400" },
-  ];
+  // Create power levels array from constants
+  const powerLevels = POWER_LEVEL_COLORS.map(({ power, color }) => ({
+    power,
+    value: getPowerMultiplier(power),
+    color,
+  }));
 
   const viablePowers = [];
 
